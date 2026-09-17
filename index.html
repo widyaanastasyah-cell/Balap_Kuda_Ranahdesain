@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Pacuan Ranahdesain — Balap Kuda</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700;800&display=swap');
+
+:root{
+  --dirt:#8B5A3C;
+  --dirt-dark:#5A3825;
+  --dirt-line:#6E4530;
+  --grass:#3D6B35;
+  --grass-dark:#2A4A24;
+  --gold:#E8A93D;
+  --gold-bright:#F5C563;
+  --cream:#FBF2E1;
+  --ink:#2B1D14;
+  --ink-soft:#5C4A3B;
+  --danger:#B3462C;
+  --white:#fff;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;font-family:'Inter',sans-serif;background:var(--cream);color:var(--ink);overflow-x:hidden;}
+h1,h2,h3,.display{font-family:'Anton',sans-serif;letter-spacing:.02em;font-weight:400;}
+button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
+.screen{min-height:100vh;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+.screen.active{display:flex;}
+
+/* ---------- Landing ---------- */
+#landing{background:linear-gradient(180deg,var(--cream) 0%,#F1E3C8 100%);text-align:center;}
+#landing .hero{font-size:clamp(40px,9vw,84px);line-height:.95;color:var(--ink);margin:0 0 6px;}
+#landing .hero span{color:var(--danger);}
+#landing .sub{color:var(--ink-soft);font-size:16px;margin-bottom:36px;}
+.role-cards{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;max-width:640px;}
+.role-card{background:var(--white);border:3px solid var(--ink);border-radius:14px;padding:28px 26px;width:260px;text-align:left;transition:transform .12s ease;box-shadow:6px 6px 0 var(--ink);}
+.role-card:active{transform:translate(3px,3px);box-shadow:3px 3px 0 var(--ink);}
+.role-card .emoji{font-size:38px;}
+.role-card h3{font-size:22px;margin:8px 0 4px;}
+.role-card p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.4;}
+
+/* ---------- Shared form bits ---------- */
+.field{width:100%;max-width:320px;margin:10px 0;}
+.field label{display:block;font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:6px;}
+.field input{width:100%;padding:14px 16px;font-size:18px;border:3px solid var(--ink);border-radius:10px;background:var(--white);color:var(--ink);font-weight:700;}
+.field input:focus{outline:3px solid var(--gold);}
+.btn{padding:16px 28px;border-radius:10px;font-weight:800;font-size:16px;border:3px solid var(--ink);background:var(--gold);color:var(--ink);box-shadow:5px 5px 0 var(--ink);transition:transform .1s;}
+.btn:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--ink);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn.secondary{background:var(--white);}
+.btn.big{padding:22px 40px;font-size:22px;}
+.back-link{position:fixed;top:16px;left:16px;font-size:14px;color:var(--ink-soft);text-decoration:none;font-weight:700;background:var(--white);padding:8px 14px;border-radius:8px;border:2px solid var(--ink);}
+
+/* ---------- Firebase warning ---------- */
+#fb-warning{display:none;position:fixed;top:0;left:0;right:0;background:var(--danger);color:#fff;padding:12px 20px;text-align:center;font-weight:700;font-size:14px;z-index:999;}
+
+/* ---------- Host: lobby ---------- */
+#host-lobby{background:var(--dirt-dark);color:var(--cream);}
+#host-lobby .code-label{font-size:16px;letter-spacing:.15em;color:var(--gold-bright);font-weight:700;text-transform:uppercase;margin-bottom:6px;}
+#host-lobby .code{font-size:clamp(60px,14vw,140px);color:var(--white);line-height:1;margin-bottom:8px;}
+#host-lobby .join-url{color:var(--cream);opacity:.7;font-size:14px;margin-bottom:24px;word-break:break-all;text-align:center;}
+#host-lobby .qr{background:#fff;padding:10px;border-radius:12px;margin-bottom:24px;}
+#host-lobby .qr img{display:block;width:160px;height:160px;}
+#players-waiting{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:700px;margin-bottom:28px;min-height:50px;}
+.player-chip{background:var(--white);color:var(--ink);border-radius:999px;padding:10px 18px;font-weight:800;font-size:15px;display:flex;align-items:center;gap:8px;}
+.player-chip .dot{width:12px;height:12px;border-radius:50%;}
+
+/* ---------- Host: race ---------- */
+#host-race{background:linear-gradient(180deg,#BFE3A8 0%,#8FC36B 40%,var(--grass) 100%);width:100%;padding:0;justify-content:flex-start;}
+#countdown-overlay{position:fixed;inset:0;background:rgba(43,29,20,.85);display:none;align-items:center;justify-content:center;z-index:50;}
+#countdown-num{font-size:180px;color:var(--gold-bright);}
+.track-wrap{width:100%;max-width:1100px;margin:24px auto;padding:0 20px;}
+.track-header{display:flex;justify-content:space-between;align-items:center;color:var(--white);margin-bottom:10px;}
+.track-header h1{font-size:32px;margin:0;color:var(--white);text-shadow:2px 2px 0 var(--grass-dark);}
+.lane{background:var(--dirt);border-top:3px dashed var(--dirt-line);border-bottom:3px dashed var(--dirt-line);position:relative;height:64px;margin-bottom:4px;border-radius:4px;overflow:hidden;}
+.lane:first-child{border-top:none;}
+.finish-flag{position:absolute;right:8px;top:0;bottom:0;width:10px;background:repeating-linear-gradient(45deg,#000,#000 6px,#fff 6px,#fff 12px);}
+.horse{position:absolute;top:50%;transform:translateY(-50%);left:2%;font-size:34px;transition:left .18s linear;filter:drop-shadow(2px 2px 1px rgba(0,0,0,.3));}
+.horse .tag{position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:800;background:var(--ink);color:#fff;padding:2px 7px;border-radius:6px;white-space:nowrap;}
+#host-start-btn{margin-top:18px;}
+#winner-banner{display:none;position:fixed;inset:0;background:rgba(43,29,20,.92);flex-direction:column;align-items:center;justify-content:center;z-index:60;color:var(--white);text-align:center;}
+#winner-banner .trophy{font-size:90px;}
+#winner-banner h1{font-size:56px;color:var(--gold-bright);margin:6px 0;}
+#winner-banner .standings{margin:20px 0;font-size:16px;}
+#winner-banner .standings div{margin:4px 0;}
+
+/* ---------- Player ---------- */
+#player-join{background:var(--dirt-dark);color:var(--cream);}
+#player-join h2{color:var(--white);font-size:30px;text-align:center;}
+.swatches{display:flex;gap:10px;margin:14px 0 6px;}
+.swatch{width:34px;height:34px;border-radius:50%;border:3px solid transparent;cursor:pointer;}
+.swatch.selected{border-color:var(--gold-bright);}
+
+#player-wait{background:var(--dirt-dark);color:var(--cream);text-align:center;}
+#player-wait .pulse{font-size:50px;animation:pulse 1.4s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.1);}}
+
+#player-race{background:linear-gradient(180deg,#F5C563 0%,var(--gold) 100%);padding:0;justify-content:flex-start;touch-action:manipulation;user-select:none;}
+.p-header{padding:16px 20px 6px;text-align:center;}
+.p-header .pos-label{font-size:13px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.1em;}
+.p-progress{width:90%;max-width:400px;margin:8px auto 0;height:18px;background:rgba(0,0,0,.15);border-radius:999px;overflow:hidden;border:2px solid var(--ink);}
+.p-progress-fill{height:100%;background:var(--danger);width:0%;transition:width .12s linear;}
+#tap-zone{flex:1;width:100%;display:flex;align-items:center;justify-content:center;position:relative;background:rgba(255,255,255,.15);}
+#tap-zone .instruction{font-size:22px;font-weight:800;color:var(--ink);text-align:center;opacity:.5;}
+#boost-indicator{display:none;position:absolute;inset:0;background:rgba(232,169,61,.55);align-items:center;justify-content:center;}
+#boost-indicator .txt{font-size:clamp(40px,12vw,80px);color:#fff;text-shadow:3px 3px 0 var(--ink);}
+#tap-zone.tapped{background:rgba(255,255,255,.35);}
+#player-finish{background:var(--dirt-dark);color:var(--cream);text-align:center;}
+#player-finish .big{font-size:60px;}
+</style>
+</head>
+<body>
+
+<div id="fb-warning">⚠️ Firebase belum dikonfigurasi — buka file ini, isi bagian <code>firebaseConfig</code> di dalam &lt;script&gt;, lalu simpan ulang.</div>
+
+<!-- ============ LANDING ============ -->
+<div id="landing" class="screen active">
+  <div class="hero">PACUAN<br><span>RANAHDESAIN</span></div>
+  <p class="sub">Layar arena di laptop, kontrol lari di HP masing-masing peserta.</p>
+  <div class="role-cards">
+    <div class="role-card" onclick="goTo('host-setup')">
+      <div class="emoji">🖥️</div>
+      <h3>Jadi Host</h3>
+      <p>Buka ini di laptop yang jadi layar arena buat penonton di stand.</p>
+    </div>
+    <div class="role-card" onclick="goTo('player-join')">
+      <div class="emoji">📱</div>
+      <h3>Gabung Balapan</h3>
+      <p>Buka ini di HP kamu, masukkan kode dari layar host, lalu tap secepat mungkin.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ HOST: SETUP ============ -->
+<div id="host-setup" class="screen">
+  <a class="back-link" href="#" onclick="goTo('landing');return false;">← Kembali</a>
+  <h2>Buka Arena Baru</h2>
+  <p style="color:var(--ink-soft);max-width:320px;text-align:center;">Kode ruangan dibuat otomatis. Layar ini akan jadi tampilan balapan yang disiarkan ke pengunjung stand.</p>
+  <button class="btn big" onclick="hostCreateRoom()">🐎 Buat Arena</button>
+</div>
+
+<!-- ============ HOST: LOBBY ============ -->
+<div id="host-lobby" class="screen">
+  <div class="code-label">Kode Gabung</div>
+  <div class="code" id="room-code-display">----</div>
+  <div class="join-url" id="join-url-display"></div>
+  <div class="qr" id="qr-wrap"><img id="qr-img" alt="QR kode gabung"></div>
+  <div id="players-waiting"></div>
+  <button class="btn big" id="host-start-btn" onclick="hostStartRace()" disabled>Mulai Balapan (min. 2 peserta)</button>
+</div>
+
+<!-- ============ HOST: RACE ============ -->
+<div id="host-race" class="screen">
+  <div class="track-wrap">
+    <div class="track-header">
+      <h1 id="host-code-tag">Kode: ----</h1>
+    </div>
+    <div id="lanes"></div>
+  </div>
+</div>
+<div id="countdown-overlay"><div id="countdown-num" class="display">3</div></div>
+<div id="winner-banner">
+  <div class="trophy">🏆</div>
+  <h1 id="winner-name">-</h1>
+  <div class="standings" id="standings-list"></div>
+  <button class="btn big" onclick="hostNewHeat()">Balapan Baru →</button>
+</div>
+
+<!-- ============ PLAYER: JOIN ============ -->
+<div id="player-join" class="screen">
+  <a class="back-link" href="#" onclick="goTo('landing');return false;" style="color:var(--cream);">← Kembali</a>
+  <h2>Gabung Balapan</h2>
+  <div class="field">
+    <label>Kode Ruangan</label>
+    <input id="join-code-input" maxlength="4" inputmode="numeric" placeholder="1234" style="text-align:center;letter-spacing:.3em;font-size:28px;">
+  </div>
+  <div class="field">
+    <label>Nama Kamu</label>
+    <input id="join-name-input" maxlength="14" placeholder="Nama panggilan">
+  </div>
+  <div class="field">
+    <label>Warna Kuda</label>
+    <div class="swatches" id="color-swatches"></div>
+  </div>
+  <button class="btn big" style="margin-top:14px;" onclick="playerJoinRoom()">Gabung! 🐎</button>
+  <p id="join-error" style="color:#ffb3a3;font-weight:700;height:18px;margin-top:10px;"></p>
+</div>
+
+<!-- ============ PLAYER: WAITING ============ -->
+<div id="player-wait" class="screen">
+  <div class="pulse">🐎</div>
+  <h2>Siap di garis start!</h2>
+  <p>Menunggu host memulai balapan...</p>
+</div>
+
+<!-- ============ PLAYER: RACE ============ -->
+<div id="player-race" class="screen">
+  <div class="p-header">
+    <div class="pos-label">Kecepatanmu</div>
+    <div class="p-progress"><div class="p-progress-fill" id="p-progress-fill"></div></div>
+  </div>
+  <div id="tap-zone">
+    <div class="instruction" id="tap-instruction">TAP LAYAR<br>SECEPAT MUNGKIN!</div>
+    <div id="boost-indicator"><div class="txt">⚡ BOOST!</div></div>
+  </div>
+</div>
+
+<!-- ============ PLAYER: FINISH ============ -->
+<div id="player-finish" class="screen">
+  <div class="big" id="finish-emoji">🏁</div>
+  <h2 id="finish-title">Selesai!</h2>
+  <p id="finish-sub"></p>
+  <button class="btn" style="margin-top:16px;" onclick="goTo('player-join')">Main Lagi</button>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+/* =========================================================================
+   SETUP WAJIB: ganti object di bawah ini dengan config project Firebase-mu.
+   Cara dapetinnya ada di panduan yang dikirim bareng file ini.
+   ========================================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyAUBN11gkbS-DHAHcMyBV131JRsdDg3ZJI",
+  authDomain: "p2mw-balap-kuda.firebaseapp.com",
+  databaseURL: "https://p2mw-balap-kuda-default-rtdb.firebaseio.com",
+  projectId: "p2mw-balap-kuda",
+  storageBucket: "p2mw-balap-kuda.firebasestorage.app",
+  messagingSenderId: "1070197543262",
+  appId: "1:1070197543262:web:4bcf612a193b843ed8ffcf"
+};
+
+const HORSE_COLORS = ["#B3462C","#3D6B35","#2E5A8C","#8B5CA8","#C97A1F","#1F8C7A"];
+const HORSE_EMOJI = "🐎";
+let db, roomRef;
+let isFirebaseReady = false;
+
+try{
+  if(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("PASTE_")){
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    isFirebaseReady = true;
+  }
+}catch(e){ console.error(e); }
+
+if(!isFirebaseReady){
+  document.getElementById('fb-warning').style.display = 'block';
+}
+
+function goTo(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* ---------------- shared helpers ---------------- */
+function randomCode(){ return String(Math.floor(1000 + Math.random()*9000)); }
+function uid(){ return 'p'+Math.random().toString(36).slice(2,10); }
+
+/* ================= HOST ================= */
+let hostCode = null;
+let hostPlayersCache = {};
+
+function hostCreateRoom(){
+  if(!isFirebaseReady) return;
+  hostCode = randomCode();
+  roomRef = db.ref('rooms/'+hostCode);
+  roomRef.set({ status:'waiting', createdAt: Date.now(), players: {} });
+  document.getElementById('room-code-display').textContent = hostCode;
+  document.getElementById('host-code-tag').textContent = 'Kode: '+hostCode;
+  const joinUrl = location.origin + location.pathname + '?code=' + hostCode;
+  document.getElementById('join-url-display').textContent = joinUrl;
+  document.getElementById('qr-img').src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(joinUrl);
+
+  roomRef.child('players').on('value', snap=>{
+    hostPlayersCache = snap.val() || {};
+    renderWaitingChips();
+  });
+
+  goTo('host-lobby');
+}
+
+function renderWaitingChips(){
+  const wrap = document.getElementById('players-waiting');
+  const ids = Object.keys(hostPlayersCache);
+  wrap.innerHTML = ids.map(id=>{
+    const p = hostPlayersCache[id];
+    return `<div class="player-chip"><span class="dot" style="background:${p.color}"></span>${p.name}</div>`;
+  }).join('') || '<span style="color:var(--cream);opacity:.6;">Belum ada peserta gabung...</span>';
+  const startBtn = document.getElementById('host-start-btn');
+  startBtn.disabled = ids.length < 2;
+  startBtn.textContent = ids.length < 2 ? 'Mulai Balapan (min. 2 peserta)' : `Mulai Balapan (${ids.length} peserta) →`;
+}
+
+function hostStartRace(){
+  roomRef.update({ status:'countdown' });
+  goTo('host-race');
+  renderLanes();
+  runCountdown();
+}
+
+function runCountdown(){
+  const overlay = document.getElementById('countdown-overlay');
+  const num = document.getElementById('countdown-num');
+  overlay.style.display = 'flex';
+  let n = 3;
+  num.textContent = n;
+  const iv = setInterval(()=>{
+    n--;
+    if(n>0){ num.textContent = n; }
+    else if(n===0){ num.textContent = 'GAS!'; }
+    else{
+      clearInterval(iv);
+      overlay.style.display = 'none';
+      roomRef.update({ status:'racing' });
+    }
+  },700);
+}
+
+function renderLanes(){
+  const lanes = document.getElementById('lanes');
+  const ids = Object.keys(hostPlayersCache);
+  lanes.innerHTML = ids.map(id=>{
+    const p = hostPlayersCache[id];
+    return `<div class="lane"><div class="finish-flag"></div><div class="horse" id="horse-${id}" style="color:${p.color};left:2%;">
+      <div class="tag" style="background:${p.color}">${p.name}</div>${HORSE_EMOJI}</div></div>`;
+  }).join('');
+
+  let winnerDeclared = false;
+  roomRef.child('players').on('value', snap=>{
+    const players = snap.val() || {};
+    hostPlayersCache = players;
+    Object.keys(players).forEach(id=>{
+      const el = document.getElementById('horse-'+id);
+      if(!el) return;
+      const pos = Math.min(players[id].position || 0, 100);
+      el.style.left = (2 + pos*0.9) + '%';
+    });
+    if(!winnerDeclared){
+      const finished = Object.entries(players).filter(([,p])=>(p.position||0) >= 100);
+      if(finished.length){
+        winnerDeclared = true;
+        const winner = finished.sort((a,b)=>(a[1].finishedAt||0)-(b[1].finishedAt||0))[0][1];
+        roomRef.update({ status:'finished', winnerName: winner.name });
+        showWinnerBanner(players, winner.name);
+      }
+    }
+  });
+}
+
+function showWinnerBanner(players, winnerName){
+  document.getElementById('winner-name').textContent = winnerName + ' menang!';
+  const ranked = Object.values(players).sort((a,b)=>(b.position||0)-(a.position||0));
+  document.getElementById('standings-list').innerHTML = ranked.map((p,i)=>
+    `<div>${i+1}. ${p.name} — ${Math.min(Math.round(p.position||0),100)}%</div>`
+  ).join('');
+  document.getElementById('winner-banner').style.display = 'flex';
+}
+
+function hostNewHeat(){
+  document.getElementById('winner-banner').style.display = 'none';
+  const resetPlayers = {};
+  Object.entries(hostPlayersCache).forEach(([id,p])=>{
+    resetPlayers[id] = { ...p, position:0, finishedAt:null };
+  });
+  roomRef.update({ status:'waiting', players: resetPlayers });
+  goTo('host-lobby');
+}
+
+/* ================= PLAYER ================= */
+let myRoomCode = null;
+let myPlayerId = null;
+let myColor = HORSE_COLORS[0];
+let myPosition = 0;
+let boostActive = false;
+let boostTimer = null;
+
+function initColorSwatches(){
+  const wrap = document.getElementById('color-swatches');
+  wrap.innerHTML = HORSE_COLORS.map((c,i)=>
+    `<div class="swatch ${i===0?'selected':''}" style="background:${c}" onclick="selectColor('${c}',this)"></div>`
+  ).join('');
+}
+function selectColor(c, el){
+  myColor = c;
+  document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function playerJoinRoom(){
+  if(!isFirebaseReady) return;
+  const code = document.getElementById('join-code-input').value.trim();
+  const name = document.getElementById('join-name-input').value.trim() || 'Peserta';
+  const errEl = document.getElementById('join-error');
+  if(code.length !== 4){ errEl.textContent = 'Kode harus 4 digit.'; return; }
+
+  db.ref('rooms/'+code).get().then(snap=>{
+    if(!snap.exists()){ errEl.textContent = 'Kode tidak ditemukan.'; return; }
+    errEl.textContent = '';
+    myRoomCode = code;
+    myPlayerId = uid();
+    myPosition = 0;
+    roomRef = db.ref('rooms/'+code);
+    roomRef.child('players/'+myPlayerId).set({ name, color: myColor, position:0, finishedAt:null });
+    goTo('player-wait');
+    listenForRaceStart();
+  });
+}
+
+function listenForRaceStart(){
+  roomRef.child('status').on('value', snap=>{
+    const status = snap.val();
+    if(status === 'racing'){
+      goTo('player-race');
+      startTapLoop();
+    } else if(status === 'waiting'){
+      myPosition = 0;
+      document.getElementById('p-progress-fill').style.width = '0%';
+      goTo('player-wait');
+    }
+  });
+}
+
+function startTapLoop(){
+  document.getElementById('p-progress-fill').style.width = '0%';
+  document.getElementById('tap-instruction').style.display = 'block';
+  scheduleBoost();
+
+  const zone = document.getElementById('tap-zone');
+  const handler = (e)=>{
+    e.preventDefault();
+    if(myPosition >= 100) return;
+    myPosition += boostActive ? 6 : 1.8;
+    myPosition = Math.min(myPosition, 100);
+    document.getElementById('p-progress-fill').style.width = myPosition + '%';
+    document.getElementById('tap-instruction').style.display = 'none';
+    zone.classList.add('tapped');
+    setTimeout(()=>zone.classList.remove('tapped'),80);
+    roomRef.child('players/'+myPlayerId).update({
+      position: myPosition,
+      finishedAt: myPosition >= 100 ? Date.now() : null
+    });
+    if(myPosition >= 100){
+      zone.removeEventListener('pointerdown', handler);
+      clearTimeout(boostTimer);
+      showPlayerFinish();
+    }
+  };
+  zone.addEventListener('pointerdown', handler);
+}
+
+function scheduleBoost(){
+  const delay = 2200 + Math.random()*2600;
+  boostTimer = setTimeout(()=>{
+    if(myPosition >= 100) return;
+    boostActive = true;
+    document.getElementById('boost-indicator').style.display = 'flex';
+    setTimeout(()=>{
+      boostActive = false;
+      document.getElementById('boost-indicator').style.display = 'none';
+      if(myPosition < 100) scheduleBoost();
+    }, 650);
+  }, delay);
+}
+
+function showPlayerFinish(){
+  roomRef.child('status').get().then(snap=>{});
+  db.ref('rooms/'+myRoomCode+'/winnerName').get().then(snap=>{});
+  document.getElementById('finish-emoji').textContent = '🏁';
+  document.getElementById('finish-title').textContent = 'Kamu sampai finish!';
+  document.getElementById('finish-sub').textContent = 'Lihat hasil akhir di layar arena.';
+  goTo('player-finish');
+}
+
+/* ---------------- init ---------------- */
+initColorSwatches();
+const urlParams = new URLSearchParams(location.search);
+if(urlParams.get('code')){
+  goTo('player-join');
+  document.getElementById('join-code-input').value = urlParams.get('code');
+}
+</script>
+</body>
+</html>
