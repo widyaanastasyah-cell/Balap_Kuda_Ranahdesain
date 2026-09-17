@@ -101,17 +101,27 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
 .p-header .pos-label{font-size:13px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.1em;}
 .p-progress{width:90%;max-width:400px;margin:8px auto 0;height:18px;background:rgba(0,0,0,.15);border-radius:999px;overflow:hidden;border:2px solid var(--ink);}
 .p-progress-fill{height:100%;background:var(--danger);width:0%;transition:width .12s linear;}
-#tap-zone{flex:1;width:100%;display:flex;align-items:center;justify-content:center;position:relative;background:rgba(255,255,255,.15);}
-#tap-zone .instruction{font-size:22px;font-weight:800;color:var(--ink);text-align:center;opacity:.5;}
-#boost-indicator{display:none;position:absolute;inset:0;background:rgba(232,169,61,.55);align-items:center;justify-content:center;}
-#boost-indicator .txt{font-size:clamp(40px,12vw,80px);color:#fff;text-shadow:3px 3px 0 var(--ink);}
-#tap-zone.tapped{background:rgba(255,255,255,.35);}
+#tap-zone{flex:1;width:100%;position:relative;background:rgba(255,255,255,.15);overflow:hidden;}
+#tap-zone .instruction{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:var(--ink);text-align:center;opacity:.55;padding:0 24px;}
+.tap-target{position:absolute;width:74px;height:74px;border-radius:50%;transform:translate(-50%,-50%) scale(0);border:3px solid var(--ink);background:var(--danger);color:#fff;font-size:30px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 8px rgba(0,0,0,.3);animation:targetPop .18s ease-out forwards;touch-action:manipulation;padding:0;}
+.tap-target.boost{background:var(--gold-bright,#E8A93D);}
+.tap-target.hit{animation:targetHit .14s ease-out forwards;}
+.tap-target.missed{animation:targetMiss .14s ease-in forwards;}
+@keyframes targetPop{from{transform:translate(-50%,-50%) scale(0);}to{transform:translate(-50%,-50%) scale(1);}}
+@keyframes targetHit{from{transform:translate(-50%,-50%) scale(1);opacity:1;}to{transform:translate(-50%,-50%) scale(1.5);opacity:0;}}
+@keyframes targetMiss{from{transform:translate(-50%,-50%) scale(1);opacity:.9;}to{transform:translate(-50%,-50%) scale(.3);opacity:0;}}
 #player-finish{background:var(--dirt-dark);color:var(--cream);text-align:center;}
 #player-finish .big{font-size:60px;}
+.p-track{position:relative;width:90%;max-width:400px;height:48px;margin:12px auto 0;background:repeating-linear-gradient(90deg,#c98a3f 0 18px,#b97a30 18px 20px);border-radius:10px;border:2px solid var(--ink);overflow:visible;}
+.p-track-line{position:absolute;top:50%;left:0;right:0;height:2px;background:rgba(0,0,0,.2);}
+.p-horse{position:absolute;top:50%;left:0%;transform:translate(-10%,-55%);font-size:32px;transition:left .12s linear;filter:drop-shadow(2px 2px 0 rgba(0,0,0,.25));}
+.p-flag{position:absolute;top:50%;right:2px;transform:translateY(-50%);font-size:26px;}
+#mute-btn{position:fixed;top:10px;right:10px;z-index:999;width:40px;height:40px;border-radius:50%;border:2px solid var(--ink);background:var(--cream);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,.2);}
 </style>
 </head>
 <body>
 
+<button id="mute-btn" onclick="toggleMute()">🔊</button>
 <div id="fb-warning">⚠️ Firebase belum dikonfigurasi — buka file ini, isi bagian <code>firebaseConfig</code> di dalam &lt;script&gt;, lalu simpan ulang.</div>
 
 <!-- ============ LANDING ============ -->
@@ -199,10 +209,14 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
   <div class="p-header">
     <div class="pos-label">Kecepatanmu</div>
     <div class="p-progress"><div class="p-progress-fill" id="p-progress-fill"></div></div>
+    <div class="p-track">
+      <div class="p-track-line"></div>
+      <div class="p-horse" id="p-horse">🐎</div>
+      <div class="p-flag">🏁</div>
+    </div>
   </div>
   <div id="tap-zone">
-    <div class="instruction" id="tap-instruction">TAP LAYAR<br>SECEPAT MUNGKIN!</div>
-    <div id="boost-indicator"><div class="txt">⚡ BOOST!</div></div>
+    <div class="instruction" id="tap-instruction">SIAP-SIAP...<br>TAP TOMBOLNYA SAAT MUNCUL!</div>
   </div>
 </div>
 
@@ -246,6 +260,102 @@ try{
 
 if(!isFirebaseReady){
   document.getElementById('fb-warning').style.display = 'block';
+}
+
+/* ================= SOUND (synthesized, no external files) ================= */
+let audioCtx = null;
+let soundOn = localStorage.getItem('bk_sound') !== 'off';
+
+function ensureAudio(){
+  if(!soundOn) return null;
+  if(!audioCtx){
+    try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e){ return null; }
+  }
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function toggleMute(){
+  soundOn = !soundOn;
+  localStorage.setItem('bk_sound', soundOn ? 'on' : 'off');
+  document.getElementById('mute-btn').textContent = soundOn ? '🔊' : '🔇';
+  if(soundOn) ensureAudio();
+}
+
+function playClipClop(){
+  const ctx = ensureAudio(); if(!ctx) return;
+  const t = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(140, t);
+  osc.frequency.exponentialRampToValueAtTime(55, t+0.09);
+  gain.gain.setValueAtTime(0.28, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t+0.1);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(t); osc.stop(t+0.11);
+}
+
+function playBoostWhoosh(){
+  const ctx = ensureAudio(); if(!ctx) return;
+  const t = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(220, t);
+  osc.frequency.exponentialRampToValueAtTime(900, t+0.35);
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.linearRampToValueAtTime(0.22, t+0.05);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t+0.4);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(t); osc.stop(t+0.4);
+}
+
+function playBeep(freq, dur){
+  const ctx = ensureAudio(); if(!ctx) return;
+  const t = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'square';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.15, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t+dur);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(t); osc.stop(t+dur);
+}
+
+function playCheer(){
+  const ctx = ensureAudio(); if(!ctx) return;
+  const dur = 1.8;
+  const bufferSize = Math.floor(ctx.sampleRate * dur);
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for(let i=0;i<bufferSize;i++){ data[i] = (Math.random()*2-1) * Math.pow(1 - i/bufferSize, 0.6); }
+  const noise = ctx.createBufferSource();
+  noise.buffer = buffer;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass'; filter.frequency.value = 1500; filter.Q.value = 0.6;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.35, ctx.currentTime+0.15);
+  gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime+dur);
+  noise.connect(filter).connect(gain).connect(ctx.destination);
+  noise.start();
+  for(let i=0;i<6;i++){
+    const t0 = ctx.currentTime + Math.random()*0.6;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    const f0 = 300+Math.random()*300;
+    o.frequency.setValueAtTime(f0, t0);
+    o.frequency.exponentialRampToValueAtTime(f0*1.8, t0+0.4);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.12, t0+0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+0.5);
+    o.connect(g).connect(ctx.destination);
+    o.start(t0); o.stop(t0+0.5);
+  }
 }
 
 function goTo(id){
@@ -305,10 +415,11 @@ function runCountdown(){
   overlay.style.display = 'flex';
   let n = 3;
   num.textContent = n;
+  playBeep(440, 0.15);
   const iv = setInterval(()=>{
     n--;
-    if(n>0){ num.textContent = n; }
-    else if(n===0){ num.textContent = 'GAS!'; }
+    if(n>0){ num.textContent = n; playBeep(440, 0.15); }
+    else if(n===0){ num.textContent = 'GAS!'; playBeep(880, 0.3); }
     else{
       clearInterval(iv);
       overlay.style.display = 'none';
@@ -349,6 +460,7 @@ function renderLanes(){
 }
 
 function showWinnerBanner(players, winnerName){
+  playCheer();
   document.getElementById('winner-name').textContent = winnerName + ' menang!';
   const ranked = Object.values(players).sort((a,b)=>(b.position||0)-(a.position||0));
   document.getElementById('standings-list').innerHTML = ranked.map((p,i)=>
@@ -372,8 +484,6 @@ let myRoomCode = null;
 let myPlayerId = null;
 let myColor = HORSE_COLORS[0];
 let myPosition = 0;
-let boostActive = false;
-let boostTimer = null;
 
 function initColorSwatches(){
   const wrap = document.getElementById('color-swatches');
@@ -398,7 +508,9 @@ function playerJoinRoom(){
     if(!snap.exists()){ errEl.textContent = 'Kode tidak ditemukan.'; return; }
     errEl.textContent = '';
     myRoomCode = code;
-    myPlayerId = uid();
+    const storageKey = 'bk_playerId_' + code;
+    myPlayerId = sessionStorage.getItem(storageKey) || uid();
+    sessionStorage.setItem(storageKey, myPlayerId);
     myPosition = 0;
     roomRef = db.ref('rooms/'+code);
     roomRef.child('players/'+myPlayerId).set({ name, color: myColor, position:0, finishedAt:null });
@@ -415,52 +527,96 @@ function listenForRaceStart(){
       startTapLoop();
     } else if(status === 'waiting'){
       myPosition = 0;
+      clearTargets();
       document.getElementById('p-progress-fill').style.width = '0%';
+      document.getElementById('p-horse').style.left = '0%';
       goTo('player-wait');
     }
   });
 }
 
-function startTapLoop(){
-  document.getElementById('p-progress-fill').style.width = '0%';
-  document.getElementById('tap-instruction').style.display = 'block';
-  scheduleBoost();
+let targetTimeout = null;
+let targetSeq = 0;
+let raceActive = false;
 
-  const zone = document.getElementById('tap-zone');
-  const handler = (e)=>{
-    e.preventDefault();
-    if(myPosition >= 100) return;
-    myPosition += boostActive ? 6 : 1.8;
-    myPosition = Math.min(myPosition, 100);
-    document.getElementById('p-progress-fill').style.width = myPosition + '%';
-    document.getElementById('tap-instruction').style.display = 'none';
-    zone.classList.add('tapped');
-    setTimeout(()=>zone.classList.remove('tapped'),80);
-    roomRef.child('players/'+myPlayerId).update({
-      position: myPosition,
-      finishedAt: myPosition >= 100 ? Date.now() : null
-    });
-    if(myPosition >= 100){
-      zone.removeEventListener('pointerdown', handler);
-      clearTimeout(boostTimer);
-      showPlayerFinish();
-    }
-  };
-  zone.addEventListener('pointerdown', handler);
+function pushProgress(){
+  document.getElementById('p-progress-fill').style.width = myPosition + '%';
+  document.getElementById('p-horse').style.left = (myPosition*0.88) + '%';
+  roomRef.child('players/'+myPlayerId).update({
+    position: myPosition,
+    finishedAt: myPosition >= 100 ? Date.now() : null
+  });
 }
 
-function scheduleBoost(){
-  const delay = 2200 + Math.random()*2600;
-  boostTimer = setTimeout(()=>{
-    if(myPosition >= 100) return;
-    boostActive = true;
-    document.getElementById('boost-indicator').style.display = 'flex';
-    setTimeout(()=>{
-      boostActive = false;
-      document.getElementById('boost-indicator').style.display = 'none';
-      if(myPosition < 100) scheduleBoost();
-    }, 650);
-  }, delay);
+function startTapLoop(){
+  raceActive = true;
+  document.getElementById('p-progress-fill').style.width = '0%';
+  document.getElementById('p-horse').style.left = '0%';
+  const zone = document.getElementById('tap-zone');
+  zone.innerHTML = '<div class="instruction" id="tap-instruction">SIAP-SIAP...<br>TAP TOMBOLNYA SAAT MUNCUL!</div>';
+  setTimeout(spawnTarget, 500);
+}
+
+function clearTargets(){
+  raceActive = false;
+  clearTimeout(targetTimeout);
+  const zone = document.getElementById('tap-zone');
+  if(zone) zone.innerHTML = '';
+}
+
+function spawnTarget(){
+  if(!raceActive || myPosition >= 100) return;
+  const zone = document.getElementById('tap-zone');
+  const instr = document.getElementById('tap-instruction');
+  if(instr) instr.style.display = 'none';
+
+  const isBoost = Math.random() < 0.22;
+  const btn = document.createElement('button');
+  btn.className = 'tap-target' + (isBoost ? ' boost' : '');
+  btn.textContent = isBoost ? '⚡' : '🐾';
+  const pad = 16;
+  const x = pad + Math.random()*(100-2*pad);
+  const y = pad + Math.random()*(100-2*pad);
+  btn.style.left = x + '%';
+  btn.style.top = y + '%';
+  const myId = ++targetSeq;
+  btn.dataset.id = myId;
+
+  const lifespan = 850 + Math.random()*550; // muncul ~0.85-1.4 detik, sengaja gak kecepetan
+
+  const finishTarget = ()=>{
+    if(String(btn.dataset.id) !== String(myId)) return;
+    btn.remove();
+    if(raceActive && myPosition < 100) targetTimeout = setTimeout(spawnTarget, 160 + Math.random()*180);
+  };
+
+  const hit = (e)=>{
+    e.preventDefault();
+    if(String(btn.dataset.id) !== String(myId)) return;
+    clearTimeout(targetTimeout);
+    myPosition += isBoost ? 20 : 7.5;
+    myPosition = Math.min(myPosition, 100);
+    pushProgress();
+    playClipClop();
+    if(isBoost) playBoostWhoosh();
+    if(navigator.vibrate) navigator.vibrate(isBoost ? [20,30,20] : 15);
+    btn.classList.add('hit');
+    btn.dataset.id = -1;
+    setTimeout(()=>btn.remove(), 140);
+    if(myPosition >= 100){
+      clearTargets();
+      showPlayerFinish();
+      return;
+    }
+    targetTimeout = setTimeout(spawnTarget, 160 + Math.random()*180);
+  };
+
+  btn.addEventListener('pointerdown', hit);
+  zone.appendChild(btn);
+  targetTimeout = setTimeout(()=>{
+    btn.classList.add('missed');
+    setTimeout(finishTarget, 140);
+  }, lifespan);
 }
 
 function showPlayerFinish(){
@@ -473,6 +629,7 @@ function showPlayerFinish(){
 }
 
 /* ---------------- init ---------------- */
+document.getElementById('mute-btn').textContent = soundOn ? '🔊' : '🔇';
 initColorSwatches();
 const urlParams = new URLSearchParams(location.search);
 if(urlParams.get('code')){
